@@ -16,7 +16,7 @@ export default function BalancePage() {
     const router = useRouter()
 
     const paymentNumbers = {
-        bKash: '01904604113',
+        bKash: 'বিকাশে লেনদেন সাময়িকভাবে বন্ধ',
         Nagad: '01602967935',
     }
 
