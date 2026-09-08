@@ -17,7 +17,7 @@ export default function BalancePage() {
 
     const paymentNumbers = {
         bKash: 'বিকাশে লেনদেন সাময়িকভাবে বন্ধ',
-        Nagad: '01602967935',
+        Nagad: '01349739103',
     }
 
     const handleCopy = (num: string, type: string) => {
