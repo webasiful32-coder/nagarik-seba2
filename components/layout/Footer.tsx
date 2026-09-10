@@ -152,7 +152,7 @@ export default function Footer() {
                 <div className="w-9 h-9 rounded-xl bg-violet-900/50 border border-violet-700/30 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <MapPin size={15} className="text-violet-400" />
                 </div>
-                <span className="text-gray-400 text-sm leading-relaxed">ঢাকা, বাংলাদেশ</span>
+                <span className="text-gray-400 text-sm leading-relaxed"></span>
               </li>
               <li>
                 <Link
