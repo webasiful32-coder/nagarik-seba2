@@ -156,7 +156,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="https://wa.me/message/JJZIWPGL7JTXB1"
+                  href="https://wa.me/message/22ICZ7SXLLUTK1"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
