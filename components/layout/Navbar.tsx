@@ -43,7 +43,7 @@ export default function Navbar() {
           <span className="hidden sm:block">🇧🇩 বাংলাদেশের সহজ নাগরিক সেবা প্ল্যাটফর্ম</span>
           <div className="flex items-center gap-1 ml-auto">
             <Phone size={11} />
-            <a href="tel:01880119330" className="hover:text-violet-300 transition-colors">01880119330</a>
+            <a href="tel:01880119330" className="hover:text-violet-300 transition-colors">01602797394</a>
           </div>
         </div>
       </div>
