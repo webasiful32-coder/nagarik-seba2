@@ -1,8 +1,7 @@
-// app/dashboard/balance/page.tsx
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Copy, CheckCircle, Smartphone, Hash } from 'lucide-react'
+import { ArrowLeft, Copy, CheckCircle, Smartphone, Hash, UserCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function BalancePage() {
@@ -13,7 +12,16 @@ export default function BalancePage() {
     const [accountType, setAccountType] = useState('Personal')
     const [submitting, setSubmitting] = useState(false)
     const [copied, setCopied] = useState<string | null>(null)
+    const [isGuest, setIsGuest] = useState(false)
     const router = useRouter()
+
+    useEffect(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) {
+          setIsGuest(true)
+        }
+      })
+    }, [])
 
     const paymentNumbers = {
         bKash: 'বিকাশ সাময়িকভাবে স্থগিত ',
@@ -27,6 +35,12 @@ export default function BalancePage() {
     }
 
     const handleAddBalance = async () => {
+        if (isGuest) {
+            alert("🔒 ব্যালেন্স রিচার্জ করতে অনুগ্রহ করে প্রথমে একাউন্ট রেজিস্ট্রেশন অথবা লগইন করুন।")
+            router.push('/auth/register')
+            return
+        }
+
         if (!depositAmount || !trxId || !senderNumber) return alert("সবগুলো তথ্য সঠিকভাবে পূরণ করুন")
         if (Number(depositAmount) < (accountType === 'Personal' ? 500 : 1000)) {
             return alert(`${accountType === 'Personal' ? 500 : 1000} টাকার নিচে রিচার্জ করা সম্ভব নয়`)
@@ -59,10 +73,26 @@ export default function BalancePage() {
         <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-white to-[#ede9fe] text-gray-800 p-4 sm:p-8">
             <div className="max-w-xl mx-auto">
                 {/* Header */}
-                <div className="text-center mb-10 pt-4">
-                    <h1 className="text-4xl font-bold text-[#7c3aed] mb-3">ব্যালেন্স রিচার্জ করুন</h1>
-                    <p className="text-gray-500 text-sm font-medium">আপনার অ্যাকাউন্টে ব্যালেন্স যোগ করতে নিচের ফর্মটি পূরণ করুন</p>
+                <div className="text-center mb-8 pt-4">
+                    <h1 className="text-3xl sm:text-4xl font-bold text-[#7c3aed] mb-2">ব্যালেন্স রিচার্জ করুন</h1>
+                    <p className="text-gray-500 text-xs sm:text-sm font-medium">আপনার অ্যাকাউন্টে ব্যালেন্স যোগ করতে নিচের ফর্মটি পূরণ করুন</p>
                 </div>
+
+                {/* 🔒 Guest Mode Warning Banner */}
+                {isGuest && (
+                    <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                        <div>
+                            <p className="text-amber-900 font-bold text-xs sm:text-sm">🔒 একাউন্ট রেজিস্ট্রেশন প্রয়োজন</p>
+                            <p className="text-amber-700 text-xs mt-0.5">টাকা রিচার্জ করতে অনুগ্রহ করে প্রথমে আপনার একাউন্ট তৈরি করুন।</p>
+                        </div>
+                        <button
+                            onClick={() => router.push('/auth/register')}
+                            className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shrink-0 shadow-sm"
+                        >
+                            রেজিস্ট্রেশন করুন
+                        </button>
+                    </div>
+                )}
 
                 <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-100">
                     {/* Account Type Tabs */}
@@ -220,7 +250,7 @@ export default function BalancePage() {
                             <button
                                 onClick={handleAddBalance}
                                 disabled={submitting}
-                                className="w-full py-4 bg-gradient-to-r from-[#7c3aed] to-[#a855f7] text-white rounded-2xl font-black shadow-[0_6px_20px_rgba(124,58,237,0.4)] hover:shadow-[0_10px_30px_rgba(124,58,237,0.5)] hover:-translate-y-0.5 transition-all disabled:opacity-70 flex justify-center items-center gap-2 text-lg"
+                                className="w-full py-4 bg-gradient-to-r from-[#7c3aed] to-[#a855f7] text-white rounded-2xl font-black shadow-[0_6px_20px_rgba(124,58,237,0.4)] hover:shadow-[0_10px_30px_rgba(124,58,237,0.5)] hover:-translate-y-0.5 transition-all disabled:opacity-70 flex justify-center items-center gap-2 text-lg cursor-pointer"
                             >
                                 {submitting
                                     ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> প্রসেসিং...</>
@@ -230,7 +260,7 @@ export default function BalancePage() {
 
                             <button
                                 onClick={() => router.push('/dashboard')}
-                                className="w-full py-3.5 bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 rounded-2xl font-semibold transition-all flex justify-center items-center gap-2"
+                                className="w-full py-3.5 bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 rounded-2xl font-semibold transition-all flex justify-center items-center gap-2 cursor-pointer"
                             >
                                 <ArrowLeft size={18} /> ড্যাশবোর্ডে ফিরে যান
                             </button>
