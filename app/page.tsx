@@ -2,11 +2,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { categories } from '@/lib/services'
-import { Search, Loader2, CreditCard, ClipboardList, FileText, ShieldCheck, Headphones, Zap, Trophy, ArrowRight, User, Phone, Lock, Eye, EyeOff, X } from 'lucide-react'
+import { Search, Loader2, CreditCard, ClipboardList, FileText, ShieldCheck, Headphones, Zap, Trophy, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const coreServices = [
@@ -60,7 +59,6 @@ const whyUs = [
 ]
 
 export default function HomePage() {
-  const router = useRouter()
   const [services, setServices] = useState<any[]>([])
   const [stats, setStats] = useState([
     { icon: '⚡', value: '...', label: 'মোট সেবা সংখ্যা' },
@@ -71,13 +69,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-
-  // লগইন মোডাল স্টেট (ল্যান্ডিং পেজেই পপআপ)
-  const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [phone, setPhone] = useState('01804624046')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [authLoading, setAuthLoading] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -101,43 +92,6 @@ export default function HomePage() {
     fetchData()
   }, [])
 
-  // 🔑 লগইন করে ড্যাশবোর্ডে প্রবেশ
-  const handleQuickLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setAuthLoading(true)
-
-    const cleanPhone = phone.trim()
-    const cleanPass = password.trim()
-
-    try {
-      // সুপাবেস চেষ্টা
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@service.gov.bd`,
-        password: cleanPass
-      })
-
-      if (!error && data?.user) {
-        const { data: pData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
-        localStorage.setItem('bd_portal_user', JSON.stringify(pData || { full_name: 'asifulcse', balance: 0 }))
-      } else {
-        // সুপাবেসে ফোন কনফিগ সমস্যা থাকলেও ব্যবহারকারীকে বৈধ হিসেবে ড্যাশবোর্ডে প্রবেশ করাবে
-        localStorage.setItem('bd_portal_user', JSON.stringify({
-          id: 'usr_' + cleanPhone,
-          full_name: 'asifulcse',
-          phone: cleanPhone,
-          balance: 0,
-          role: 'citizen'
-        }))
-      }
-      // সরাসরি ড্যাশবোর্ডে পাঠিয়ে দেবে
-      router.push('/dashboard')
-    } catch (err) {
-      router.push('/dashboard')
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
   const filteredServices = services.filter(s => {
     const matchCat = activeCategory === 'all' || s.category === activeCategory
     const matchSearch =
@@ -147,71 +101,14 @@ export default function HomePage() {
   })
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] font-sans relative">
+    <div className="min-h-screen bg-[#f8fafc] font-sans">
       <Navbar />
-
-      {/* 🔐 লগইন মোডাল */}
-      {authModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl relative border border-purple-100">
-            <button onClick={() => setAuthModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
-              <X size={18} />
-            </button>
-            <h3 className="text-xl font-black text-slate-900 mb-1 text-center">ড্যাশবোর্ডে লগইন করুন</h3>
-            <p className="text-xs text-slate-500 mb-5 text-center">আপনার মোবাইল ও পাসওয়ার্ড দিন</p>
-
-            <form onSubmit={handleQuickLogin} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">মোবাইল নম্বর</label>
-                <div className="relative">
-                  <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    placeholder="01XXXXXXXXX"
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">পাসওয়ার্ড</label>
-                <div className="relative">
-                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="আপনার পাসওয়ার্ড দিন"
-                    className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={authLoading}
-                className="w-full py-3 bg-gradient-to-r from-purple-700 to-indigo-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md cursor-pointer hover:opacity-95"
-              >
-                {authLoading ? 'প্রবেশ করা হচ্ছে...' : 'লগইন করে ড্যাশবোর্ডে যান →'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ── HERO ── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#2e1065] via-[#7c3aed] to-[#a855f7] pt-12 pb-24 sm:pt-20 sm:pb-32">
+        <div className="absolute top-0 left-0 w-80 h-80 rounded-full bg-white opacity-10 blur-[120px] -translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 right-0 w-[480px] h-[480px] rounded-full bg-violet-300 opacity-20 blur-[160px] translate-x-1/4 translate-y-1/4" />
+
         <div className="relative max-w-3xl mx-auto px-4 text-center text-white">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black mb-3 sm:mb-4 drop-shadow-lg leading-tight animate-float">
             নাগরিক সেবা
@@ -220,17 +117,17 @@ export default function HomePage() {
             {stats[1].value} ব্যবহারকারী আমাদের সাথে যুক্ত
           </p>
           <p className="text-violet-100 text-sm sm:text-lg md:text-xl mb-6 sm:mb-8 font-medium">
-            আজই ফ্রি একাউন্ট খুলে ড্যাশবোর্ডে প্রবেশ করুন
+            লগইন ছাড়াই সরাসরি সকল সেবা ও ড্যাশবোর্ড দেখুন
           </p>
           
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={() => setAuthModalOpen(true)}
+            <Link
+              href="/dashboard"
               className="inline-flex items-center gap-2 px-8 py-3.5 sm:px-10 sm:py-4 bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white font-black rounded-full text-base sm:text-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer"
             >
-              <span>লগইন করে ড্যাশবোর্ডে যান</span>
+              <span>সরাসরি ড্যাশবোর্ডে প্রবেশ করুন</span>
               <ArrowRight size={20} />
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -261,24 +158,24 @@ export default function HomePage() {
             NID, স্মার্টকার্ড, TIN, জন্ম নিবন্ধন সহ
           </h2>
           <p className="text-gray-500 mt-2 text-base font-medium">
-            সকল সরকারি সেবা পেতে ড্যাশবোর্ডে রিচার্জ করুন
+            {services.length}টিরও বেশি সরকারি সেবা এখন আপনার হাতের মুঠোয়
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-8">
           {coreServices.map((cs, i) => (
-            <button
+            <Link
               key={i}
-              onClick={() => setAuthModalOpen(true)}
-              className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-purple-400 hover:-translate-y-1 transition-all flex items-start gap-4 text-left cursor-pointer shadow-sm"
+              href="/dashboard"
+              className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-blue-400 hover:-translate-y-1 transition-all flex items-start gap-4 text-left shadow-sm group"
             >
-              <div className={`w-12 h-12 ${cs.color} rounded-xl flex items-center justify-center text-2xl shrink-0`}>
+              <div className={`w-12 h-12 ${cs.color} rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform shrink-0`}>
                 {cs.icon}
               </div>
               <div>
                 <h3 className="font-black text-gray-800 mb-1">{cs.title}</h3>
                 <p className="text-gray-500 text-xs leading-relaxed">{cs.desc}</p>
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       </section>
@@ -326,19 +223,19 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {filteredServices.map(s => (
-              <button
+              <Link
                 key={s.id}
-                onClick={() => setAuthModalOpen(true)}
-                className="bg-emerald-50 rounded-2xl p-5 text-center border border-emerald-100 shadow-sm hover:shadow-md transition cursor-pointer"
+                href="/dashboard"
+                className="bg-emerald-50 rounded-2xl p-5 text-center border border-emerald-100 shadow-sm hover:shadow-md transition group"
               >
-                <div className={`w-14 h-14 ${s.color || 'bg-purple-100'} rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3 shadow-sm`}>
+                <div className={`w-14 h-14 ${s.color || 'bg-purple-100'} rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3 shadow-sm group-hover:scale-110 transition-transform`}>
                   {s.icon}
                 </div>
                 <p className="text-sm font-bold text-gray-800 leading-tight mb-2 line-clamp-2">{s.title}</p>
                 <div className="inline-flex items-center px-2.5 py-1 bg-violet-50 text-[#7c3aed] rounded-full text-[10px] font-black border border-violet-100">
                   <span>৳ {s.price}</span>
                 </div>
-              </button>
+              </Link>
             ))}
           </div>
         )}

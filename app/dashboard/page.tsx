@@ -3,15 +3,15 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Home, Menu, X, LogOut, User, Search, Bell,
+  Home, Menu, X, LogOut, User, Search,
   Wallet, Settings, Clock, Send, ShieldCheck, ArrowDownToLine,
-  CreditCard, Sparkles, ArrowRight
+  CreditCard, Sparkles, ArrowRight, ArrowLeft, UserCheck, Eye, EyeOff, Lock, Phone
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/supabase'
 import { categories } from '@/lib/services'
 
-const WHATSAPP_LINK = "https://wa.me/message/5GS3DHNNX6PSM1"
+const WHATSAPP_LINK = "https://wa.me/message/22ICZ7SXLLUTK1"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -19,76 +19,162 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // ইউজার ও প্রোফাইল স্টেট
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [isRegistered, setIsRegistered] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // রেজিস্ট্রেশন ও লগইন মোডাল
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authTab, setAuthTab] = useState<'register' | 'login'>('register')
+  const [authForm, setAuthForm] = useState({ name: '', phone: '', email: '', password: '' })
+  const [showPassword, setShowPassword] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
 
   // সেবা অর্ডার উইন্ডো
   const [activeService, setActiveService] = useState<any | null>(null)
   const [orderInput, setOrderInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // রিচার্জ প্রয়োজন নোটিফিকেশন টোস্ট
-  const [toast, setToast] = useState<{ title: string; message: string; show: boolean } | null>(null)
+  // টোস্ট নোটিফিকেশন
+  const [toast, setToast] = useState<{ title: string; message: string; show: boolean; actionBtn?: string; actionType?: 'recharge' | 'auth' } | null>(null)
 
   useEffect(() => {
-    const checkAuthAndFetch = async () => {
-      // সার্ভিস লোড
+    const initDashboard = async () => {
+      // সার্ভিস লিস্ট লোড করা
       const { data: servicesData } = await supabase.from('services').select('*').order('created_at', { ascending: true })
       setServices(servicesData || [])
 
-      // সেশন চেক
+      // পূর্বে সেভ করা ইউজার চেক
       const savedUser = typeof window !== 'undefined' ? localStorage.getItem('bd_portal_user') : null
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
         const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
-        setProfile(profileData || { full_name: 'asifulcse', balance: 0 } as any)
+        const userFullName = profileData?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'প্রিয় নাগরিক'
+        setProfile({ ...profileData, full_name: userFullName })
+        setIsRegistered(true)
       } else if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser)
           setProfile(parsed)
+          setIsRegistered(Boolean(parsed.phone || parsed.full_name !== 'প্রিয় নাগরিক'))
         } catch (e) {
-          router.replace('/')
-          return
+          setProfile({ id: 'guest_user', full_name: 'প্রিয় নাগরিক', balance: 0, role: 'citizen' } as any)
+          setIsRegistered(false)
         }
       } else {
-        // লগইন ছাড়া কেউ ড্যাশবোর্ডে ঢুকলে সরাসরি ১ম পেজে পাঠিয়ে দেবে
-        router.replace('/')
-        return
+        // নতুন ইউজারের ক্ষেত্রে ডিফল্ট 'প্রিয় নাগরিক'
+        setProfile({ id: 'guest_user', full_name: 'প্রিয় নাগরিক', balance: 0, role: 'citizen' } as any)
+        setIsRegistered(false)
       }
 
       setLoading(false)
     }
 
-    checkAuthAndFetch()
-  }, [router])
+    initDashboard()
+  }, [])
 
-  const triggerToast = (title: string, message: string) => {
-    setToast({ title, message, show: true })
+  const triggerToast = (title: string, message: string, actionBtn?: string, actionType?: 'recharge' | 'auth') => {
+    setToast({ title, message, show: true, actionBtn, actionType })
     setTimeout(() => {
       setToast(prev => prev ? { ...prev, show: false } : null)
-    }, 4500)
+    }, 5500)
   }
 
-  // 🎯 সেবা ওপেন হওয়ার শর্ত: ইউজার যখন রিচার্জ করবে তখনই ওপেন হবে!
+  // 🎯 সার্ভিসে ক্লিক করলে যা হবে
   const handleServiceClick = (service: any) => {
-    const currentBalance = profile?.balance || 0
-    
-    // ব্যালেন্স পর্যাপ্ত না থাকলে সেবা ওপেন হবে না — রিচার্জ করতে বলবে
-    if (currentBalance < service.price) {
+    // ১. ইউজার রেজিস্ট্রেশন না করলে রেজিস্ট্রেশন ফর্ম ওপেন হবে
+    if (!isRegistered) {
+      setAuthTab('register')
+      setAuthModalOpen(true)
       triggerToast(
-        '⚠️ ব্যালেন্স রিচার্জ প্রয়োজন',
-        `"${service.title}" সেবার জন্য ৳ ${service.price} ফি প্রয়োজন। আপনার বর্তমান ব্যালেন্স ৳ ${currentBalance}। সেবাটি চালু করতে অনুগ্রহ করে ব্যালেন্স রিচার্জ করুন।`
+        '🔒 একাউন্ট রেজিস্ট্রেশন প্রয়োজন',
+        `"${service.title}" সেবাটি চালু করতে অনুগ্রহ করে প্রথমে আপনার নামে একটি একাউন্ট তৈরি করুন।`,
+        'রেজিস্ট্রেশন করুন',
+        'auth'
       )
       return
     }
 
-    // ব্যালেন্স রিচার্জ করা থাকলে সাথে সাথে সেবা ওপেন হবে
+    // ২. রেজিস্ট্রেশন করা আছে কিন্তু ব্যালেন্স নেই
+    const currentBalance = profile?.balance || 0
+    if (currentBalance < service.price) {
+      triggerToast(
+        '⚠️ ব্যালেন্স রিচার্জ প্রয়োজন',
+        `"${service.title}" সেবার ফি ৳ ${service.price}। আপনার বর্তমান ব্যালেন্স ৳ ${currentBalance}। সেবাটি চালু করতে ব্যালেন্স রিচার্জ করুন।`,
+        'রিচার্জ করুন',
+        'recharge'
+      )
+      return
+    }
+
+    // ৩. রিচার্জ করা থাকলে সরাসরি সেবা ওপেন হবে
     setActiveService(service)
     setOrderInput('')
   }
 
-  // অর্ডার সম্পন্ন লজিক
+  // 🔐 ডাইনামিক রেজিস্ট্রেশন ও লগইন: যে নাম দিবে, সেই নামই সাথে সাথে ড্যাশবোর্ডে ফুটে উঠবে
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthLoading(true)
+
+    const cleanName = authForm.name.trim() || 'নাগরিক'
+    const cleanPhone = authForm.phone.trim()
+    const password = authForm.password.trim()
+
+    try {
+      if (authTab === 'register') {
+        const emailToUse = authForm.email || `${cleanPhone}@service.gov.bd`
+        await supabase.auth.signUp({
+          email: emailToUse,
+          password: password,
+          options: { data: { full_name: cleanName, phone: cleanPhone } }
+        })
+
+        const newUserProfile = {
+          id: 'usr_' + cleanPhone,
+          full_name: cleanName, // ইউজারের দেওয়া নাম
+          phone: cleanPhone,
+          balance: 0,
+          role: 'citizen'
+        }
+
+        setProfile(newUserProfile as any)
+        setIsRegistered(true)
+        localStorage.setItem('bd_portal_user', JSON.stringify(newUserProfile))
+        setAuthModalOpen(false)
+
+        triggerToast(
+          `অভিনন্দন, ${cleanName}!`,
+          'আপনার একাউন্ট সফলভাবে সক্রিয় হয়েছে! এবার সেবা পেতে ব্যালেন্স রিচার্জ করুন।',
+          'ব্যালেন্স রিচার্জ করুন',
+          'recharge'
+        )
+      } else {
+        // লগইন
+        const loggedUser = {
+          id: 'usr_' + cleanPhone,
+          full_name: cleanName !== 'নাগরিক' ? cleanName : 'ব্যবহারকারী',
+          phone: cleanPhone,
+          balance: 0,
+          role: 'citizen'
+        }
+        setProfile(loggedUser as any)
+        setIsRegistered(true)
+        localStorage.setItem('bd_portal_user', JSON.stringify(loggedUser))
+        setAuthModalOpen(false)
+        triggerToast('লগইন সফল!', `স্বাগতম, আপনার একাউন্ট লোড হয়েছে।`)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  // সেবা অর্ডার সাবমিট
   const handlePlaceOrder = async (service: any) => {
     if (!orderInput.trim()) return alert('অনুগ্রহ করে প্রয়োজনীয় তথ্য দিন!')
 
@@ -115,11 +201,13 @@ export default function DashboardPage() {
     setSubmitting(false)
   }
 
-  // 🚪 লগআউট করলে সরাসরি ১ম ল্যান্ডিং পেজে পাঠিয়ে দেওয়া হবে
+  // লগআউট
   const handleLogout = async () => {
     await supabase.auth.signOut()
     localStorage.removeItem('bd_portal_user')
-    router.replace('/')
+    setIsRegistered(false)
+    setProfile({ id: 'guest_user', full_name: 'প্রিয় নাগরিক', balance: 0, role: 'citizen' } as any)
+    router.push('/')
   }
 
   const filteredServices = services.filter(s => {
@@ -149,10 +237,13 @@ export default function DashboardPage() {
     { href: '/dashboard/settings', icon: Settings, label: 'সেটিংস' },
   ]
 
+  const displayName = profile?.full_name || 'প্রিয় নাগরিক'
+  const userInitial = displayName.charAt(0).toUpperCase()
+
   return (
     <div className="min-h-screen flex bg-[#f3f0ff] font-sans antialiased relative">
 
-      {/* 🔔 রিচার্জ প্রয়োজন নোটিফিকেশন */}
+      {/* 🔔 নোটিফিকেশন টোস্ট */}
       {toast && toast.show && (
         <div className="fixed top-6 right-6 z-50 p-4 rounded-2xl bg-white border-2 border-amber-400 shadow-2xl flex items-start gap-3.5 w-84 sm:w-96 animate-fade-in">
           <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl shrink-0 border border-amber-200">
@@ -161,21 +252,160 @@ export default function DashboardPage() {
           <div className="flex-1">
             <h5 className="text-xs font-black text-slate-900">{toast.title}</h5>
             <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed font-semibold">{toast.message}</p>
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard/balance')}
-                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-700 to-indigo-600 text-white font-bold text-[11px] shadow-sm cursor-pointer"
-              >
-                এখনই রিচার্জ করুন
-              </button>
-              <button
-                type="button"
-                onClick={() => setToast(null)}
-                className="px-2 py-1 text-slate-500 hover:text-slate-800 text-[11px] font-semibold cursor-pointer"
-              >
-                বন্ধ করুন
-              </button>
+            {toast.actionBtn && (
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setToast(null)
+                    if (toast.actionType === 'auth') {
+                      setAuthModalOpen(true)
+                    } else {
+                      router.push('/dashboard/balance')
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-700 to-indigo-600 text-white font-bold text-[11px] shadow-sm cursor-pointer"
+                >
+                  {toast.actionBtn}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/')}
+                  className="px-2 py-1 text-purple-700 hover:text-purple-900 text-[11px] font-bold cursor-pointer"
+                >
+                  হোমপেজে যান
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setToast(null)}
+                  className="px-2 py-1 text-slate-400 hover:text-slate-700 text-[11px] font-semibold cursor-pointer"
+                >
+                  বন্ধ
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 🔐 রেজিস্ট্রেশন ও লগইন মোডাল (যেখান থেকে হোমপেজে ফিরে যাওয়ার বাটন দেওয়া হয়েছে) */}
+      {authModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="relative w-full max-w-[420px] max-h-[92vh] my-auto bg-white rounded-3xl shadow-2xl border border-purple-100 flex flex-col overflow-hidden">
+            <div className="h-1.5 shrink-0 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-pink-500" />
+
+            <button
+              onClick={() => setAuthModalOpen(false)}
+              className="absolute top-3 right-3 z-20 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="p-6 sm:p-7 overflow-y-auto">
+              <div className="flex flex-col items-center text-center mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center text-white font-bold text-xl mb-2 shadow-sm">
+                  ন
+                </div>
+                <h3 className="text-lg font-black text-slate-900">নাগরিক সেবা একাউন্ট</h3>
+                <p className="text-[11px] text-slate-500 font-medium">আপনার নাম দিয়ে ফ্রি একাউন্ট তৈরি করুন</p>
+              </div>
+
+              <div className="p-1 rounded-xl bg-slate-100 flex gap-1 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setAuthTab('register')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    authTab === 'register' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  নতুন একাউন্ট (রেজিস্ট্রেশন)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthTab('login')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    authTab === 'login' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  লগইন
+                </button>
+              </div>
+
+              <form onSubmit={handleAuthSubmit} className="space-y-3">
+                {authTab === 'register' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">আপনার পূর্ণ নাম</label>
+                    <div className="relative">
+                      <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder=""
+                        value={authForm.name}
+                        onChange={e => setAuthForm({ ...authForm, name: e.target.value })}
+                        className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">মোবাইল নম্বর</label>
+                  <div className="relative">
+                    <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="01XXXXXXXXX"
+                      value={authForm.phone}
+                      onChange={e => setAuthForm({ ...authForm, phone: e.target.value })}
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">পাসওয়ার্ড</label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="পাসওয়ার্ড দিন"
+                      value={authForm.password}
+                      onChange={e => setAuthForm({ ...authForm, password: e.target.value })}
+                      className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full mt-2 py-3 bg-gradient-to-r from-purple-700 to-indigo-600 hover:from-purple-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition cursor-pointer disabled:opacity-50"
+                >
+                  {authLoading ? 'প্রক্রিয়াধীন...' : (authTab === 'register' ? 'রেজিস্ট্রেশন সম্পন্ন করুন →' : 'লগইন করুন →')}
+                </button>
+              </form>
+
+              {/* 🔥 রেজিস্ট্রেশন করতে না চাইলে হোমপেজে ফিরে যাওয়ার বাটন */}
+              <div className="mt-4 pt-3.5 border-t border-slate-100 text-center">
+                <button
+                  type="button"
+                  onClick={() => router.push('/')}
+                  className="text-xs text-purple-700 hover:text-purple-900 font-bold inline-flex items-center gap-1.5 hover:underline cursor-pointer py-1"
+                >
+                  <ArrowLeft size={14} /> এখন রেজিস্ট্রেশন করতে চাই না, হোমপেজে ফিরে যান
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
@@ -186,16 +416,18 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-r from-purple-700 to-indigo-800 flex flex-col transform transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        
+        {/* লোগো ও হোমপেজ লিংক */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
-          <Link href="/dashboard" className="text-white font-black text-xl tracking-tight">
-            নাগরিক সেবা
+          <Link href="/" className="text-white font-black text-xl tracking-tight flex items-center gap-2">
+            <span>নাগরিক সেবা</span>
           </Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white/70 hover:text-white">
             <X size={20} />
           </button>
         </div>
 
-        {/* ব্যালেন্স কার্ড */}
+        {/* 🟡🟠 ব্যালেন্স কার্ড */}
         <div className="px-4 py-5">
           <div className="bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 rounded-3xl p-5 text-center text-slate-950 shadow-lg border border-amber-300/40">
             <p className="text-xs font-black mb-1.5 uppercase tracking-wider text-slate-900">
@@ -205,7 +437,13 @@ export default function DashboardPage() {
               {profile?.balance || 0} ৳
             </p>
             <button
-              onClick={() => router.push('/dashboard/balance')}
+              onClick={() => {
+                if (!isRegistered) {
+                  setAuthModalOpen(true)
+                  return
+                }
+                router.push('/dashboard/balance')
+              }}
               className="block text-center w-full bg-white text-orange-600 py-2.5 rounded-xl text-xs sm:text-sm font-black hover:bg-orange-50 transition shadow-sm cursor-pointer"
             >
               রিচার্জ করুন
@@ -213,7 +451,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* নেভিগেশন মেনু */}
+        {/* মেনু আইটেম */}
         <nav className="flex-1 px-3 py-2 space-y-1">
           {navItems.map(item => (
             <button
@@ -233,14 +471,33 @@ export default function DashboardPage() {
           ))}
         </nav>
 
-        {/* লগআউট বাটন */}
-        <div className="px-3 py-4 border-t border-white/10">
-          <button 
-            onClick={handleLogout} 
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-rose-300 hover:text-white hover:bg-rose-600/30 transition font-bold text-sm cursor-pointer"
+        {/* নিচের অ্যাকশন বাটনসমূহ (হোমপেজে ফেরা ও লগআউট) */}
+        <div className="px-3 py-4 border-t border-white/10 space-y-2">
+          
+          {/* 🔥 সাইডবারে হোমপেজে ফেরার স্পষ্ট বাটন */}
+          <Link
+            href="/"
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-purple-200 hover:text-white hover:bg-white/10 transition font-bold text-xs cursor-pointer"
           >
-            <LogOut size={18} /> লগআউট
-          </button>
+            <ArrowLeft size={16} />
+            <span>হোমপেজে ফিরে যান</span>
+          </Link>
+
+          {isRegistered ? (
+            <button 
+              onClick={handleLogout} 
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-rose-300 hover:text-white hover:bg-rose-600/30 transition font-bold text-xs cursor-pointer"
+            >
+              <LogOut size={16} /> লগআউট
+            </button>
+          ) : (
+            <button
+              onClick={() => { setAuthTab('register'); setAuthModalOpen(true) }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs transition shadow-sm cursor-pointer"
+            >
+              <UserCheck size={16} /> একাউন্ট রেজিস্ট্রেশন
+            </button>
+          )}
         </div>
       </aside>
 
@@ -253,6 +510,15 @@ export default function DashboardPage() {
             <Menu size={22} />
           </button>
           
+          {/* হোমপেজে ফেরার ছোট বোতাম (মোবাইল ও পিসির জন্য) */}
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition border border-purple-200"
+          >
+            <ArrowLeft size={14} />
+            <span className="hidden sm:inline">হোমপেজ</span>
+          </Link>
+
           <div className="flex-1 relative max-w-md hidden sm:block">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -277,33 +543,44 @@ export default function DashboardPage() {
               <span>WhatsApp এ মেসেজ দিন</span>
             </a>
 
+            {/* ইউজার প্রোফাইল হেডার */}
             <div className="flex items-center gap-2">
               <div className="hidden sm:block text-right">
-                <p className="text-xs font-black text-slate-800 leading-tight">{profile?.full_name}</p>
-                <p className="text-[10px] text-purple-700 font-bold font-mono mt-0.5">ব্যালেন্স: {profile?.balance || 0}৳</p>
+                <p className="text-xs font-black text-slate-800 leading-tight">
+                  {displayName}
+                </p>
+                <p className="text-[10px] text-purple-700 font-bold font-mono mt-0.5">
+                  ব্যালেন্স: {profile?.balance || 0}৳
+                </p>
               </div>
               <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center text-white font-black text-sm shadow-md uppercase">
-                {profile?.full_name?.charAt(0) || 'A'}
+                {userInitial}
               </div>
             </div>
           </div>
         </header>
 
-        {/* ড্যাশবোর্ড মেইন পেজ */}
+        {/* ড্যাশবোর্ড কন্টেন্ট */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto space-y-6">
 
           {/* 🟣 পার্পল ব্যানার */}
           <div className="relative bg-gradient-to-r from-[#7c3aed] via-[#8b5cf6] to-[#9333ea] rounded-3xl p-6 sm:p-9 text-white overflow-hidden shadow-lg">
             <div className="relative z-10 max-w-xl">
               <h2 className="text-2xl sm:text-3xl font-black mb-1.5 leading-tight flex items-center gap-2">
-                আস্সালামু আলাইকুম, {profile?.full_name}! 👋
+                আস্সালামু আলাইকুম, {displayName}! 👋
               </h2>
               <p className="text-purple-100 text-xs sm:text-sm mb-5 font-semibold">
                 আজকে আপনি কোন সরকারি সেবাটি নিতে চান?
               </p>
               
               <button
-                onClick={() => router.push('/dashboard/balance')}
+                onClick={() => {
+                  if (!isRegistered) {
+                    setAuthModalOpen(true)
+                    return
+                  }
+                  router.push('/dashboard/balance')
+                }}
                 className="inline-flex items-center gap-2 bg-white text-purple-900 px-6 py-2.5 rounded-2xl font-black text-xs sm:text-sm shadow-md hover:bg-purple-50 transition cursor-pointer"
               >
                 <Wallet size={16} className="text-purple-700" />
@@ -356,10 +633,12 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mt-3 pt-2 border-t border-purple-50 w-full text-[10px] font-bold">
-                    {needsRecharge ? (
+                    {!isRegistered ? (
+                      <span className="text-indigo-600 font-bold">সেবা নিন →</span>
+                    ) : needsRecharge ? (
                       <span className="text-amber-600 font-bold">রিচার্জ লাগবে →</span>
                     ) : (
-                      <span className="text-emerald-600 font-bold">সেবা নিন →</span>
+                      <span className="text-emerald-600 font-bold">সেবা ওপেন করুন →</span>
                     )}
                   </div>
                 </div>
@@ -370,7 +649,7 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {/* সেবা অর্ডার উইন্ডো (রিচার্জ করার পর সেবা নেওয়ার জন্য) */}
+      {/* সেবা অর্ডার উইন্ডো */}
       {activeService && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setActiveService(null)}>
           <div className="bg-white rounded-3xl w-full max-w-md p-6 sm:p-7 shadow-2xl border border-purple-100" onClick={e => e.stopPropagation()}>
