@@ -9,13 +9,14 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/supabase'
-import { categories } from '@/lib/services'
+import { categories, services as staticServices } from '@/lib/services'
 
 const WHATSAPP_LINK = "https://wa.me/message/22ICZ7SXLLUTK1"
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [services, setServices] = useState<any[]>([])
+  // সরাসরি staticServices দিয়ে ইনিশিয়ালাইজ করা হলো যাতে নতুন ৪টি সার্ভিস সাথে সাথে দেখা যায়
+  const [services, setServices] = useState<any[]>(staticServices)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -42,9 +43,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const initDashboard = async () => {
-      // সার্ভিস লিস্ট লোড করা
-      const { data: servicesData } = await supabase.from('services').select('*').order('created_at', { ascending: true })
-      setServices(servicesData || [])
+      // সার্ভিস লিস্ট নিশ্চিত করা
+      setServices(staticServices)
 
       // পূর্বে সেভ করা ইউজার চেক
       const savedUser = typeof window !== 'undefined' ? localStorage.getItem('bd_portal_user') : null
@@ -213,7 +213,7 @@ export default function DashboardPage() {
   const filteredServices = services.filter(s => {
     const matchCat = activeCategory === 'all' || s.category === activeCategory
     const matchSearch = s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.title_en && s.title_en.toLowerCase().includes(searchQuery.toLowerCase()))
+      ((s.titleEn || s.title_en) && (s.titleEn || s.title_en).toLowerCase().includes(searchQuery.toLowerCase()))
     return matchCat && matchSearch
   })
 
@@ -340,7 +340,7 @@ export default function DashboardPage() {
                       <input
                         type="text"
                         required
-                        placeholder=""
+                        placeholder="আপনার পুরো নাম লিখুন"
                         value={authForm.name}
                         onChange={e => setAuthForm({ ...authForm, name: e.target.value })}
                         className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
@@ -609,7 +609,7 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* সার্ভিস কার্ড গ্রিড */}
+          {/* সার্ভিস কার্ড গ্রিড (নতুন সংশোধন সার্ভিস ও ডেলিভারি সময় সহ) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
             {filteredServices.map(service => {
               const currentBalance = profile?.balance || 0
@@ -619,8 +619,15 @@ export default function DashboardPage() {
                 <div
                   key={service.id}
                   onClick={() => handleServiceClick(service)}
-                  className="bg-white hover:bg-gradient-to-br hover:from-white hover:to-purple-50/40 rounded-3xl p-5 flex flex-col items-center text-center border border-purple-100/70 shadow-sm hover:shadow-lg hover:border-purple-300 hover:-translate-y-1 transition group cursor-pointer"
+                  className="bg-white hover:bg-gradient-to-br hover:from-white hover:to-purple-50/40 rounded-3xl p-5 flex flex-col items-center text-center border border-purple-100/70 shadow-sm hover:shadow-lg hover:border-purple-300 hover:-translate-y-1 transition group cursor-pointer relative"
                 >
+                  {/* 🔥 ডেলিভারি সময় ব্যাজ (যেমন: ৩ দিন) */}
+                  {service.deliveryTime && (
+                    <div className="absolute top-3 right-3 bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-200">
+                      ⏱ {service.deliveryTime}
+                    </div>
+                  )}
+
                   <div className={`w-14 h-14 sm:w-16 sm:h-16 ${service.color || 'bg-purple-50 text-purple-600'} rounded-2xl flex items-center justify-center text-3xl mb-3.5 group-hover:scale-110 transition shadow-xs`}>
                     {service.icon}
                   </div>
@@ -660,7 +667,14 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900 leading-tight">{activeService.title}</h3>
-                  <p className="text-[#7c3aed] font-black text-xs sm:text-sm font-mono mt-0.5">চার্জ: {activeService.price} ৳</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-[#7c3aed] font-black text-xs sm:text-sm font-mono">চার্জ: {activeService.price} ৳</p>
+                    {activeService.deliveryTime && (
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md">
+                        ডেলিভারি: {activeService.deliveryTime}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
