@@ -5,7 +5,8 @@ import Link from 'next/link'
 import {
   Home, Menu, X, LogOut, User, Search,
   Wallet, Settings, Clock, Send, ShieldCheck, ArrowDownToLine,
-  CreditCard, Sparkles, ArrowRight, ArrowLeft, UserCheck, Eye, EyeOff, Lock, Phone
+  CreditCard, Sparkles, ArrowRight, ArrowLeft, UserCheck, Eye, EyeOff, Lock, Phone,
+  Upload, Image as ImageIcon
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/supabase'
@@ -36,6 +37,9 @@ export default function DashboardPage() {
   // সেবা অর্ডার উইন্ডো
   const [activeService, setActiveService] = useState<any | null>(null)
   const [orderInput, setOrderInput] = useState('')
+  // 🔥 সংশোধিত তথ্য চাহিদা ও ছবি জমা দেওয়ার স্টেট
+  const [correctionDetails, setCorrectionDetails] = useState('')
+  const [uploadedFiles, setUploadedFiles] = useState<{ nidImage?: string; birthImage?: string }>({})
   const [submitting, setSubmitting] = useState(false)
 
   // টোস্ট নোটিফিকেশন
@@ -113,7 +117,26 @@ export default function DashboardPage() {
     // ৩. রিচার্জ করা থাকলে সরাসরি সেবা ওপেন হবে
     setActiveService(service)
     setOrderInput('')
+    setCorrectionDetails('')
+    setUploadedFiles({})
   }
+
+  // ছবি আপলোড হ্যান্ডলার (আইডি কার্ড / জন্ম নিবন্ধন)
+  const handleFileUpload = (type: 'nidImage' | 'birthImage', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUploadedFiles(prev => ({
+        ...prev,
+        [type]: file.name
+      }))
+    }
+  }
+
+  // চেক করা যে সার্ভিসটি সংশোধন বা স্থানান্তর ক্যাটাগরির কিনা
+  const isCorrectionService = activeService?.id?.includes('correction') || 
+                              activeService?.id?.includes('transfer') || 
+                              activeService?.title?.includes('সংশোধন') ||
+                              activeService?.title?.includes('স্থানান্তর')
 
   // 🔐 ডাইনামিক রেজিস্ট্রেশন ও লগইন: যে নাম দিবে, সেই নামই সাথে সাথে ড্যাশবোর্ডে ফুটে উঠবে
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -174,24 +197,40 @@ export default function DashboardPage() {
     }
   }
 
-  // সেবা অর্ডার সাবমিট
+  // সেবা অর্ডার সাবমিট (সংশোধন তথ্য ও ছবি সহ)
   const handlePlaceOrder = async (service: any) => {
-    if (!orderInput.trim()) return alert('অনুগ্রহ করে প্রয়োজনীয় তথ্য দিন!')
+    if (isCorrectionService) {
+      if (!orderInput.trim()) return alert('অনুগ্রহ করে বর্তমান NID নম্বর বা আবেদনকারীর তথ্য দিন!')
+      if (!correctionDetails.trim()) return alert('অনুগ্রহ করে সংশোধিত তথ্য চাহিদা লিখুন!')
+    } else {
+      if (!orderInput.trim()) return alert('অনুগ্রহ করে প্রয়োজনীয় তথ্য দিন!')
+    }
 
     setSubmitting(true)
+
+    // সম্পূর্ণ ডাটা প্রস্তুত
+    const payload = isCorrectionService ? JSON.stringify({
+      nid_or_info: orderInput.trim(),
+      demanded_correction: correctionDetails.trim(),
+      attached_nid: uploadedFiles.nidImage || 'জমা দেওয়া হয়নি',
+      attached_birth_cert: uploadedFiles.birthImage || 'জমা দেওয়া হয়নি'
+    }) : orderInput.trim()
+
     const { data, error: rpcError } = await supabase.rpc('place_order', {
       p_service_id: service.id,
       p_service_name: service.title,
       p_price: service.price,
-      p_input_data: orderInput.trim(),
+      p_input_data: payload,
     })
 
     if (rpcError || (data && !data.success)) {
       alert(rpcError?.message || data?.message || 'অর্ডার করতে সমস্যা হয়েছে।')
     } else {
-      alert('✅ আপনার সেবা অর্ডার সফল হয়েছে!')
+      alert('✅ আপনার সেবা অর্ডার সফল হয়েছে! ৩ দিনের মধ্যে সমাধান পেয়ে যাবেন।')
       setActiveService(null)
       setOrderInput('')
+      setCorrectionDetails('')
+      setUploadedFiles({})
       setProfile(prev => {
         const updated = prev ? { ...prev, balance: (prev.balance || 0) - service.price } : null
         if (updated) localStorage.setItem('bd_portal_user', JSON.stringify(updated))
@@ -656,51 +695,137 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {/* সেবা অর্ডার উইন্ডো */}
+      {/* ── 🔥 সেবা অর্ডার উইন্ডো (আইডি কার্ড সংশোধনের ছবি ও তথ্য আপলোড সহ) ── */}
       {activeService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in" onClick={() => setActiveService(null)}>
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 sm:p-7 shadow-2xl border border-purple-100" onClick={e => e.stopPropagation()}>
-            <div>
-              <div className="flex items-center gap-4 mb-5">
-                <div className={`w-14 h-14 rounded-2xl ${activeService.color || 'bg-purple-50 text-purple-600'} flex items-center justify-center text-3xl shadow-sm border border-purple-100 shrink-0`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto" onClick={() => setActiveService(null)}>
+          <div className="bg-white rounded-3xl w-full max-w-lg p-5 sm:p-7 shadow-2xl border border-purple-100 max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            
+            {/* সার্ভিস হেডার */}
+            <div className="flex items-center justify-between pb-4 border-b border-purple-50 shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className={`w-12 h-12 rounded-2xl ${activeService.color || 'bg-purple-50 text-purple-600'} flex items-center justify-center text-2xl shadow-sm border border-purple-100 shrink-0`}>
                   {activeService.icon}
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 leading-tight">{activeService.title}</h3>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">{activeService.title}</h3>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-[#7c3aed] font-black text-xs sm:text-sm font-mono">চার্জ: {activeService.price} ৳</p>
+                    <p className="text-[#7c3aed] font-black text-xs sm:text-sm font-mono">চার্জ: ৳ {activeService.price}</p>
                     {activeService.deliveryTime && (
-                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md">
-                        ডেলিভারি: {activeService.deliveryTime}
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                        ⏱ সময়: {activeService.deliveryTime}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
+              <button onClick={() => setActiveService(null)} className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
 
-              <div className="mb-6">
-                <label className="block text-[11px] font-bold text-gray-400 mb-2">
-                  {activeService.inputLabel || 'প্রয়োজনীয় তথ্য (NID / ফরম নম্বর)'}
+            {/* ফর্ম বডি */}
+            <div className="py-4 overflow-y-auto space-y-4">
+
+              {/* ১. বর্তমান NID / আবেদনকারীর তথ্য */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  {isCorrectionService ? 'বর্তমান NID নম্বর / মোবাইল নম্বর' : (activeService.inputLabel || 'প্রয়োজনীয় তথ্য (NID / ফরম নম্বর)')}
                 </label>
                 <input
                   type="text"
                   value={orderInput}
                   onChange={e => setOrderInput(e.target.value)}
-                  placeholder={activeService.inputPlaceholder || 'এখানে লিখুন...'}
-                  className="w-full px-4 py-3.5 bg-gray-50/80 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                  placeholder={isCorrectionService ? 'আপনার বর্তমান জাতীয় পরিচয়পত্র নম্বর দিন' : (activeService.inputPlaceholder || 'এখানে লিখুন...')}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
                   autoFocus
                 />
               </div>
 
-              <div className="flex gap-3">
-                <button onClick={() => setActiveService(null)} className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 rounded-2xl font-bold text-gray-600 text-xs sm:text-sm transition cursor-pointer">
-                  বাতিল
-                </button>
-                <button onClick={() => handlePlaceOrder(activeService)} disabled={submitting} className="flex-1 py-3.5 bg-[#7c3aed] hover:bg-purple-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg text-xs sm:text-sm transition cursor-pointer disabled:opacity-50">
-                  {submitting ? 'লোড হচ্ছে...' : <><Send size={15} /><span>অর্ডার করুন</span></>}
-                </button>
-              </div>
+              {/* ২. 🔥 সংশোধন সেবার বিশেষ ফিল্ডসমূহ */}
+              {isCorrectionService && (
+                <>
+                  {/* সংশোধিত তথ্য চাহিদা */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>সংশোধিত তথ্যের চাহিদা (কী পরিবর্তন হবে)</span>
+                      <span className="text-[10px] text-purple-600 font-bold">*অবশ্যই দিন</span>
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={correctionDetails}
+                      onChange={e => setCorrectionDetails(e.target.value)}
+                      placeholder="আপনি ঠিক কি কি সংশোধন করতে চান বিস্তারিত লিখুন (যেমন: নতুন নাম / সঠিক জন্মতারিখ / কাঙ্ক্ষিত ঠিকানা)..."
+                      className="w-full px-4 py-3 bg-purple-50/40 border border-purple-100 rounded-2xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-medium text-slate-800 resize-none leading-relaxed"
+                    />
+                  </div>
+
+                  {/* ছবি জমা দেওয়ার বক্স (আইডি কার্ড এবং জন্ম নিবন্ধন) */}
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
+                    <p className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                      <ImageIcon size={16} className="text-amber-700" />
+                      <span>আইডি কার্ড এবং জন্ম নিবন্ধনএর ছবি এখানে জমা দিন</span>
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {/* আইডি কার্ড আপলোড */}
+                      <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-amber-300 rounded-xl bg-white hover:bg-amber-50/50 transition cursor-pointer text-center">
+                        <Upload size={18} className="text-amber-600 mb-1" />
+                        <span className="text-[11px] font-bold text-slate-700">আইডি কার্ডের ছবি</span>
+                        <span className="text-[9px] text-slate-400 mt-0.5">
+                          {uploadedFiles.nidImage ? `✅ ${uploadedFiles.nidImage}` : 'ছবি সিলেক্ট করুন'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={e => handleFileUpload('nidImage', e)}
+                        />
+                      </label>
+
+                      {/* জন্ম নিবন্ধন আপলোড */}
+                      <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-amber-300 rounded-xl bg-white hover:bg-amber-50/50 transition cursor-pointer text-center">
+                        <Upload size={18} className="text-amber-600 mb-1" />
+                        <span className="text-[11px] font-bold text-slate-700">জন্ম নিবন্ধনের ছবি</span>
+                        <span className="text-[9px] text-slate-400 mt-0.5">
+                          {uploadedFiles.birthImage ? `✅ ${uploadedFiles.birthImage}` : 'ছবি সিলেক্ট করুন'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={e => handleFileUpload('birthImage', e)}
+                        />
+                      </label>
+                    </div>
+
+                    <p className="text-[10px] text-amber-800 font-medium">
+                      💡 পরিষ্কার স্পষ্ট ছবি বা PDF আপলোড করুন যাতে দ্রুত যাচাই করা যায়।
+                    </p>
+                  </div>
+                </>
+              )}
+
             </div>
+
+            {/* বাটনসমূহ */}
+            <div className="pt-3 border-t border-slate-100 flex gap-3 shrink-0">
+              <button 
+                type="button"
+                onClick={() => setActiveService(null)} 
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-2xl font-bold text-slate-600 text-xs sm:text-sm transition cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button 
+                type="button"
+                onClick={() => handlePlaceOrder(activeService)} 
+                disabled={submitting} 
+                className="flex-1 py-3 bg-[#7c3aed] hover:bg-purple-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg text-xs sm:text-sm transition cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? 'লোড হচ্ছে...' : <><Send size={15} /><span>অর্ডার কনফার্ম করুন</span></>}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
