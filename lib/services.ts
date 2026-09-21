@@ -25,7 +25,7 @@ export const services: Service[] = [
     icon: '📋', 
     color: 'bg-blue-400', 
     category: 'nid', 
-    price: 18, 
+    price: 80, 
     popular: true, 
     inputLabel: 'আইডি নাম্বার ও জন্ম তারিখ', 
     inputPlaceholder: 'আইডি নাম্বার / জন্ম তারিখ (DD/MM/YYYY)' 
@@ -38,7 +38,7 @@ export const services: Service[] = [
     icon: '🖋️', 
     color: 'bg-blue-500', 
     category: 'nid', 
-    price: 18, 
+    price: 85, 
     inputLabel: 'ভোটার/আইডি নাম্বার', 
     inputPlaceholder: 'ভোটার নাম্বার বা আইডি নাম্বার দিন' 
   },
@@ -50,7 +50,7 @@ export const services: Service[] = [
     icon: '🪪', 
     color: 'bg-indigo-600', 
     category: 'nid', 
-    price: 33, 
+    price: 99, 
     popular: true, 
     inputLabel: 'আইডি নাম্বার ও জন্ম তারিখ', 
     inputPlaceholder: 'আইডি নাম্বার / জন্ম তারিখ (DD/MM/YYYY)' 
