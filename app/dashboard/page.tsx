@@ -788,7 +788,7 @@ export default function DashboardPage() {
                       required
                       value={birthForm.childName}
                       onChange={e => setBirthForm({ ...birthForm, childName: e.target.value })}
-                      placeholder="যেমন: আরিয়ান আহমেদ / Ariyan Ahmed"
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
                     />
                   </div>
@@ -835,7 +835,7 @@ export default function DashboardPage() {
                       required
                       value={birthForm.birthDateTimePlace}
                       onChange={e => setBirthForm({ ...birthForm, birthDateTimePlace: e.target.value })}
-                      placeholder="যেমন: ১৫/০৩/২০২৩, সকাল ১০:৩০, ঢাকা মেডিকেল"
+                      placeholder=""
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
                     />
                   </div>
