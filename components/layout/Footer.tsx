@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Mail, MapPin, MessageCircle, ArrowRight, Shield, Clock, Star } from 'lucide-react'
 
 // অফিসিয়াল WhatsApp লিংক
-const WHATSAPP_LINK = "https://wa.me/message/667QTIMSRSQYO1"
+const WHATSAPP_LINK = "https://wa.me/message/7ZRXATYLUXYIL1"
 
 const FacebookIcon = ({ size = 24 }: { size?: number }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
