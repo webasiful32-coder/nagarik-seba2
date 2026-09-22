@@ -92,7 +92,7 @@ export const services: Service[] = [
     inputPlaceholder: 'আইডি নাম্বার / জন্ম তারিখ (DD/MM/YYYY)' 
   },
 
-  // 🔥 আপনার দেওয়া নতুন ৪টি আইডি কার্ড সংশোধন সেবা (৩ দিন সময়):
+  // নতুন ৪টি আইডি কার্ড সংশোধন সেবা (৩ দিন সময়):
   { 
     id: 'nid-full-name-correction', 
     title: 'আইডি কার্ড পুরো নাম সংশোধন', 
@@ -219,7 +219,21 @@ export const services: Service[] = [
   // ─────────────────────────────────────────────
   // 📋 জন্ম নিবন্ধন
   // ─────────────────────────────────────────────
-  { id: 'new-birth-reg', title: 'নতুন জন্মনিবন্ধন', titleEn: 'New Birth Registration', description: 'সম্পূর্ণ নতুন জন্মনিবন্ধন আবেদন', icon: '👶', color: 'bg-green-700', category: 'birth', price: 510, inputLabel: 'নাম ও জন্ম তারিখ', inputPlaceholder: 'শিশুর নাম / জন্ম তারিখ / পিতামাতার নাম' },
+  // 🔥 নতুন জন্মনিবন্ধন (২৪ ঘণ্টার মধ্যেই অনলাইন হবে):
+  { 
+    id: 'new-birth-reg', 
+    title: 'নতুন জন্মনিবন্ধন', 
+    titleEn: 'New Birth Registration', 
+    description: 'সম্পূর্ণ নতুন জন্মনিবন্ধন আবেদন (২৪ ঘণ্টার মধ্যেই অনলাইন হবে)', 
+    icon: '👶', 
+    color: 'bg-green-700', 
+    category: 'birth', 
+    price: 510, 
+    popular: true,
+    deliveryTime: '২৪ ঘণ্টা',
+    inputLabel: 'প্রয়োজনীয় তথ্য', 
+    inputPlaceholder: 'বাচ্চার নাম ও পিতা-মাতার তথ্য দিন' 
+  },
   { id: 'birth-copy', title: 'জন্ম নিবন্ধন কপি', titleEn: 'Birth Reg Copy', description: 'জন্মনিবন্ধন সনদের ডিজিটাল কপি', icon: '📄', color: 'bg-green-500', category: 'birth', price: 35, popular: true, inputLabel: 'জন্ম নিবন্ধন নাম্বার', inputPlaceholder: 'জন্ম নিবন্ধন নাম্বার দিন' },
   { id: 'birth-correction', title: 'জন্মনিবন্ধন সংশোধন', titleEn: 'Birth Reg Correction', description: 'জন্মনিবন্ধনের তথ্য সংশোধন', icon: '✏️', color: 'bg-green-600', category: 'birth', price: 200, inputLabel: 'জন্ম নিবন্ধন নাম্বার ও সংশোধনের তথ্য', inputPlaceholder: 'জন্ম নিবন্ধন নাম্বার / কী সংশোধন করতে চান' },
   { id: 'death-certificate', title: 'মৃত্যু সনদ', titleEn: 'Death Certificate', description: 'মৃত্যু নিবন্ধন সনদ সংগ্রহ', icon: '📜', color: 'bg-gray-600', category: 'birth', price: 150, inputLabel: 'মৃত ব্যক্তির নাম ও তথ্য', inputPlaceholder: 'মৃত ব্যক্তির নাম / মৃত্যু তারিখ' },

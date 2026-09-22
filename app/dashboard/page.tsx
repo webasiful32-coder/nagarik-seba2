@@ -6,7 +6,7 @@ import {
   Home, Menu, X, LogOut, User, Search,
   Wallet, Settings, Clock, Send, ShieldCheck, ArrowDownToLine,
   CreditCard, Sparkles, ArrowRight, ArrowLeft, UserCheck, Eye, EyeOff, Lock, Phone,
-  Upload, Image as ImageIcon
+  Upload, Image as ImageIcon, Baby, CheckCircle2
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/supabase'
@@ -16,7 +16,6 @@ const WHATSAPP_LINK = "https://wa.me/message/22ICZ7SXLLUTK1"
 
 export default function DashboardPage() {
   const router = useRouter()
-  // সরাসরি staticServices দিয়ে ইনিশিয়ালাইজ করা হলো যাতে নতুন ৪টি সার্ভিস সাথে সাথে দেখা যায়
   const [services, setServices] = useState<any[]>(staticServices)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState('all')
@@ -37,9 +36,21 @@ export default function DashboardPage() {
   // সেবা অর্ডার উইন্ডো
   const [activeService, setActiveService] = useState<any | null>(null)
   const [orderInput, setOrderInput] = useState('')
-  // 🔥 সংশোধিত তথ্য চাহিদা ও ছবি জমা দেওয়ার স্টেট
+  
+  // আইডি কার্ড সংশোধিত তথ্য চাহিদা ও ছবি জমা দেওয়ার স্টেট
   const [correctionDetails, setCorrectionDetails] = useState('')
   const [uploadedFiles, setUploadedFiles] = useState<{ nidImage?: string; birthImage?: string }>({})
+  
+  // 🔥 নতুন জন্মনিবন্ধন এর বিশেষ স্টেট
+  const [birthForm, setBirthForm] = useState({
+    motherNidOrBirth: '',
+    fatherNidOrBirth: '',
+    childName: '',
+    birthDateTimePlace: '',
+    permanentAddress: '',
+    guardianPhone: ''
+  })
+
   const [submitting, setSubmitting] = useState(false)
 
   // টোস্ট নোটিফিকেশন
@@ -47,10 +58,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const initDashboard = async () => {
-      // সার্ভিস লিস্ট নিশ্চিত করা
       setServices(staticServices)
 
-      // পূর্বে সেভ করা ইউজার চেক
       const savedUser = typeof window !== 'undefined' ? localStorage.getItem('bd_portal_user') : null
       const { data: { session } } = await supabase.auth.getSession()
 
@@ -69,7 +78,6 @@ export default function DashboardPage() {
           setIsRegistered(false)
         }
       } else {
-        // নতুন ইউজারের ক্ষেত্রে ডিফল্ট 'প্রিয় নাগরিক'
         setProfile({ id: 'guest_user', full_name: 'প্রিয় নাগরিক', balance: 0, role: 'citizen' } as any)
         setIsRegistered(false)
       }
@@ -89,7 +97,6 @@ export default function DashboardPage() {
 
   // 🎯 সার্ভিসে ক্লিক করলে যা হবে
   const handleServiceClick = (service: any) => {
-    // ১. ইউজার রেজিস্ট্রেশন না করলে রেজিস্ট্রেশন ফর্ম ওপেন হবে
     if (!isRegistered) {
       setAuthTab('register')
       setAuthModalOpen(true)
@@ -102,7 +109,6 @@ export default function DashboardPage() {
       return
     }
 
-    // ২. রেজিস্ট্রেশন করা আছে কিন্তু ব্যালেন্স নেই
     const currentBalance = profile?.balance || 0
     if (currentBalance < service.price) {
       triggerToast(
@@ -114,11 +120,18 @@ export default function DashboardPage() {
       return
     }
 
-    // ৩. রিচার্জ করা থাকলে সরাসরি সেবা ওপেন হবে
     setActiveService(service)
     setOrderInput('')
     setCorrectionDetails('')
     setUploadedFiles({})
+    setBirthForm({
+      motherNidOrBirth: '',
+      fatherNidOrBirth: '',
+      childName: '',
+      birthDateTimePlace: '',
+      permanentAddress: '',
+      guardianPhone: profile?.phone || ''
+    })
   }
 
   // ছবি আপলোড হ্যান্ডলার (আইডি কার্ড / জন্ম নিবন্ধন)
@@ -132,13 +145,16 @@ export default function DashboardPage() {
     }
   }
 
-  // চেক করা যে সার্ভিসটি সংশোধন বা স্থানান্তর ক্যাটাগরির কিনা
+  // সার্ভিস টাইপ চেক
   const isCorrectionService = activeService?.id?.includes('correction') || 
                               activeService?.id?.includes('transfer') || 
                               activeService?.title?.includes('সংশোধন') ||
                               activeService?.title?.includes('স্থানান্তর')
 
-  // 🔐 ডাইনামিক রেজিস্ট্রেশন ও লগইন: যে নাম দিবে, সেই নামই সাথে সাথে ড্যাশবোর্ডে ফুটে উঠবে
+  const isNewBirthService = activeService?.id === 'new-birth-reg' || 
+                            activeService?.title?.includes('নতুন জন্মনিবন্ধন')
+
+  // 🔐 ডাইনামিক রেজিস্ট্রেশন ও লগইন
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -158,7 +174,7 @@ export default function DashboardPage() {
 
         const newUserProfile = {
           id: 'usr_' + cleanPhone,
-          full_name: cleanName, // ইউজারের দেওয়া নাম
+          full_name: cleanName,
           phone: cleanPhone,
           balance: 0,
           role: 'citizen'
@@ -176,7 +192,6 @@ export default function DashboardPage() {
           'recharge'
         )
       } else {
-        // লগইন
         const loggedUser = {
           id: 'usr_' + cleanPhone,
           full_name: cleanName !== 'নাগরিক' ? cleanName : 'ব্যবহারকারী',
@@ -197,24 +212,44 @@ export default function DashboardPage() {
     }
   }
 
-  // সেবা অর্ডার সাবমিট (সংশোধন তথ্য ও ছবি সহ)
+  // সেবা অর্ডার সাবমিট (সংশোধন, নতুন জন্মনিবন্ধন ও অন্যান্য)
   const handlePlaceOrder = async (service: any) => {
-    if (isCorrectionService) {
+    let payload = ''
+
+    if (isNewBirthService) {
+      if (!birthForm.childName.trim()) return alert('অনুগ্রহ করে বাচ্চার নাম (বাংলা ও ইংরেজি) দিন!')
+      if (!birthForm.motherNidOrBirth.trim()) return alert('অনুগ্রহ করে মাতার NID / জন্মনিবন্ধন নম্বর দিন!')
+      if (!birthForm.fatherNidOrBirth.trim()) return alert('অনুগ্রহ করে পিতার NID / জন্মনিবন্ধন নম্বর দিন!')
+      if (!birthForm.birthDateTimePlace.trim()) return alert('অনুগ্রহ করে জন্মতারিখ, সময় ও স্থান দিন!')
+      if (!birthForm.permanentAddress.trim()) return alert('অনুগ্রহ করে স্থায়ী ঠিকানা দিন!')
+      if (!birthForm.guardianPhone.trim()) return alert('অনুগ্রহ করে অভিভাবকের ফোন নম্বর দিন!')
+
+      payload = JSON.stringify({
+        service_type: 'নতুন জন্মনিবন্ধন',
+        child_name: birthForm.childName.trim(),
+        mother_nid_or_birth: birthForm.motherNidOrBirth.trim(),
+        father_nid_or_birth: birthForm.fatherNidOrBirth.trim(),
+        birth_datetime_place: birthForm.birthDateTimePlace.trim(),
+        permanent_address: birthForm.permanentAddress.trim(),
+        guardian_phone: birthForm.guardianPhone.trim(),
+        delivery_note: '২৪ ঘণ্টার মধ্যেই অনলাইন হবে'
+      })
+    } else if (isCorrectionService) {
       if (!orderInput.trim()) return alert('অনুগ্রহ করে বর্তমান NID নম্বর বা আবেদনকারীর তথ্য দিন!')
       if (!correctionDetails.trim()) return alert('অনুগ্রহ করে সংশোধিত তথ্য চাহিদা লিখুন!')
+
+      payload = JSON.stringify({
+        nid_or_info: orderInput.trim(),
+        demanded_correction: correctionDetails.trim(),
+        attached_nid: uploadedFiles.nidImage || 'জমা দেওয়া হয়নি',
+        attached_birth_cert: uploadedFiles.birthImage || 'জমা দেওয়া হয়নি'
+      })
     } else {
       if (!orderInput.trim()) return alert('অনুগ্রহ করে প্রয়োজনীয় তথ্য দিন!')
+      payload = orderInput.trim()
     }
 
     setSubmitting(true)
-
-    // সম্পূর্ণ ডাটা প্রস্তুত
-    const payload = isCorrectionService ? JSON.stringify({
-      nid_or_info: orderInput.trim(),
-      demanded_correction: correctionDetails.trim(),
-      attached_nid: uploadedFiles.nidImage || 'জমা দেওয়া হয়নি',
-      attached_birth_cert: uploadedFiles.birthImage || 'জমা দেওয়া হয়নি'
-    }) : orderInput.trim()
 
     const { data, error: rpcError } = await supabase.rpc('place_order', {
       p_service_id: service.id,
@@ -226,7 +261,14 @@ export default function DashboardPage() {
     if (rpcError || (data && !data.success)) {
       alert(rpcError?.message || data?.message || 'অর্ডার করতে সমস্যা হয়েছে।')
     } else {
-      alert('✅ আপনার সেবা অর্ডার সফল হয়েছে! ৩ দিনের মধ্যে সমাধান পেয়ে যাবেন।')
+      if (isNewBirthService) {
+        alert('✅ আপনার নতুন জন্মনিবন্ধন আবেদন সফলভাবে জমা হয়েছে! ২৪ ঘণ্টার মধ্যেই অনলাইন হয়ে যাবে।')
+      } else if (isCorrectionService) {
+        alert('✅ আপনার সংশোধন আবেদন সফল হয়েছে! ৩ দিনের মধ্যে সমাধান হয়ে যাবে।')
+      } else {
+        alert('✅ আপনার সেবা অর্ডার সফল হয়েছে!')
+      }
+      
       setActiveService(null)
       setOrderInput('')
       setCorrectionDetails('')
@@ -327,7 +369,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 🔐 রেজিস্ট্রেশন ও লগইন মোডাল (যেখান থেকে হোমপেজে ফিরে যাওয়ার বাটন দেওয়া হয়েছে) */}
+      {/* 🔐 রেজিস্ট্রেশন ও লগইন মোডাল */}
       {authModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
           <div className="relative w-full max-w-[420px] max-h-[92vh] my-auto bg-white rounded-3xl shadow-2xl border border-purple-100 flex flex-col overflow-hidden">
@@ -434,7 +476,7 @@ export default function DashboardPage() {
                 </button>
               </form>
 
-              {/* 🔥 রেজিস্ট্রেশন করতে না চাইলে হোমপেজে ফিরে যাওয়ার বাটন */}
+              {/* হোমপেজে ফিরে যাওয়ার বাটন */}
               <div className="mt-4 pt-3.5 border-t border-slate-100 text-center">
                 <button
                   type="button"
@@ -456,7 +498,6 @@ export default function DashboardPage() {
       )}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-r from-purple-700 to-indigo-800 flex flex-col transform transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         
-        {/* লোগো ও হোমপেজ লিংক */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
           <Link href="/" className="text-white font-black text-xl tracking-tight flex items-center gap-2">
             <span>নাগরিক সেবা</span>
@@ -510,10 +551,8 @@ export default function DashboardPage() {
           ))}
         </nav>
 
-        {/* নিচের অ্যাকশন বাটনসমূহ (হোমপেজে ফেরা ও লগআউট) */}
+        {/* নিচের অ্যাকশন বাটনসমূহ */}
         <div className="px-3 py-4 border-t border-white/10 space-y-2">
-          
-          {/* 🔥 সাইডবারে হোমপেজে ফেরার স্পষ্ট বাটন */}
           <Link
             href="/"
             className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-purple-200 hover:text-white hover:bg-white/10 transition font-bold text-xs cursor-pointer"
@@ -549,7 +588,6 @@ export default function DashboardPage() {
             <Menu size={22} />
           </button>
           
-          {/* হোমপেজে ফেরার ছোট বোতাম (মোবাইল ও পিসির জন্য) */}
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl transition border border-purple-200"
@@ -648,7 +686,7 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* সার্ভিস কার্ড গ্রিড (নতুন সংশোধন সার্ভিস ও ডেলিভারি সময় সহ) */}
+          {/* সার্ভিস কার্ড গ্রিড */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
             {filteredServices.map(service => {
               const currentBalance = profile?.balance || 0
@@ -660,7 +698,7 @@ export default function DashboardPage() {
                   onClick={() => handleServiceClick(service)}
                   className="bg-white hover:bg-gradient-to-br hover:from-white hover:to-purple-50/40 rounded-3xl p-5 flex flex-col items-center text-center border border-purple-100/70 shadow-sm hover:shadow-lg hover:border-purple-300 hover:-translate-y-1 transition group cursor-pointer relative"
                 >
-                  {/* 🔥 ডেলিভারি সময় ব্যাজ (যেমন: ৩ দিন) */}
+                  {/* ডেলিভারি সময় ব্যাজ */}
                   {service.deliveryTime && (
                     <div className="absolute top-3 right-3 bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-200">
                       ⏱ {service.deliveryTime}
@@ -695,7 +733,7 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {/* ── 🔥 সেবা অর্ডার উইন্ডো (আইডি কার্ড সংশোধনের ছবি ও তথ্য আপলোড সহ) ── */}
+      {/* ── 🔥 সেবা অর্ডার উইন্ডো ── */}
       {activeService && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto" onClick={() => setActiveService(null)}>
           <div className="bg-white rounded-3xl w-full max-w-lg p-5 sm:p-7 shadow-2xl border border-purple-100 max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -711,7 +749,9 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-[#7c3aed] font-black text-xs sm:text-sm font-mono">চার্জ: ৳ {activeService.price}</p>
                     {activeService.deliveryTime && (
-                      <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isNewBirthService ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
                         ⏱ সময়: {activeService.deliveryTime}
                       </span>
                     )}
@@ -726,25 +766,127 @@ export default function DashboardPage() {
             {/* ফর্ম বডি */}
             <div className="py-4 overflow-y-auto space-y-4">
 
-              {/* ১. বর্তমান NID / আবেদনকারীর তথ্য */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  {isCorrectionService ? 'বর্তমান NID নম্বর / মোবাইল নম্বর' : (activeService.inputLabel || 'প্রয়োজনীয় তথ্য (NID / ফরম নম্বর)')}
-                </label>
-                <input
-                  type="text"
-                  value={orderInput}
-                  onChange={e => setOrderInput(e.target.value)}
-                  placeholder={isCorrectionService ? 'আপনার বর্তমান জাতীয় পরিচয়পত্র নম্বর দিন' : (activeService.inputPlaceholder || 'এখানে লিখুন...')}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
-                  autoFocus
-                />
-              </div>
+              {/* 🌟 কেইস ১: নতুন জন্মনিবন্ধন ফর্ম */}
+              {isNewBirthService ? (
+                <div className="space-y-3.5">
+                  {/* বিশেষ গ্যারান্টি ব্যানার */}
+                  <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5 text-emerald-800">
+                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                    <div>
+                      <h5 className="text-xs font-black">২৪ ঘণ্টার মধ্যেই অনলাইন হবে!</h5>
+                      <p className="text-[10px] text-emerald-700 font-semibold">নিচে দেওয়া সঠিক তথ্যগুলো পূরণ করে আবেদন জমা দিন।</p>
+                    </div>
+                  </div>
 
-              {/* ২. 🔥 সংশোধন সেবার বিশেষ ফিল্ডসমূহ */}
-              {isCorrectionService && (
-                <>
-                  {/* সংশোধিত তথ্য চাহিদা */}
+                  {/* ১. বাচ্চার নাম */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      বাচ্চার নাম (বাংলা ও ইংরেজি) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={birthForm.childName}
+                      onChange={e => setBirthForm({ ...birthForm, childName: e.target.value })}
+                      placeholder="যেমন: আরিয়ান আহমেদ / Ariyan Ahmed"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* ২. মাতার NID / জন্মনিবন্ধন */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        মাতার NID / জন্মনিবন্ধন নম্বর <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={birthForm.motherNidOrBirth}
+                        onChange={e => setBirthForm({ ...birthForm, motherNidOrBirth: e.target.value })}
+                        placeholder="মাতার NID বা জন্মনিবন্ধন নং"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                      />
+                    </div>
+
+                    {/* ৩. পিতার NID / জন্মনিবন্ধন */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        পিতার NID / জন্মনিবন্ধন নম্বর <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={birthForm.fatherNidOrBirth}
+                        onChange={e => setBirthForm({ ...birthForm, fatherNidOrBirth: e.target.value })}
+                        placeholder="পিতার NID বা জন্মনিবন্ধন নং"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ৪. জন্মতারিখ, সময় ও স্থান */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      জন্মতারিখ, সময় ও স্থান <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={birthForm.birthDateTimePlace}
+                      onChange={e => setBirthForm({ ...birthForm, birthDateTimePlace: e.target.value })}
+                      placeholder="যেমন: ১৫/০৩/২০২৩, সকাল ১০:৩০, ঢাকা মেডিকেল"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  {/* ৫. স্থায়ী ঠিকানা */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      স্থায়ী ঠিকানা <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={birthForm.permanentAddress}
+                      onChange={e => setBirthForm({ ...birthForm, permanentAddress: e.target.value })}
+                      placeholder="গ্রাম/মহল্লা, ডাকঘর, উপজেলা, জেলা"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                    />
+                  </div>
+
+                  {/* ৬. অভিভাবকের ফোন নম্বর */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      অভিভাবকের ফোন নম্বর <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={birthForm.guardianPhone}
+                      onChange={e => setBirthForm({ ...birthForm, guardianPhone: e.target.value })}
+                      placeholder="01XXXXXXXXX"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                    />
+                  </div>
+                </div>
+              ) : isCorrectionService ? (
+                /* 🌟 কেইস ২: আইডি কার্ড সংশোধন ফর্ম */
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      বর্তমান NID নম্বর / মোবাইল নম্বর <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={orderInput}
+                      onChange={e => setOrderInput(e.target.value)}
+                      placeholder="আপনার বর্তমান জাতীয় পরিচয়পত্র নম্বর দিন"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                      autoFocus
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
                       <span>সংশোধিত তথ্যের চাহিদা (কী পরিবর্তন হবে)</span>
@@ -759,7 +901,6 @@ export default function DashboardPage() {
                     />
                   </div>
 
-                  {/* ছবি জমা দেওয়ার বক্স (আইডি কার্ড এবং জন্ম নিবন্ধন) */}
                   <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
                     <p className="text-xs font-black text-amber-900 flex items-center gap-1.5">
                       <ImageIcon size={16} className="text-amber-700" />
@@ -767,7 +908,6 @@ export default function DashboardPage() {
                     </p>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {/* আইডি কার্ড আপলোড */}
                       <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-amber-300 rounded-xl bg-white hover:bg-amber-50/50 transition cursor-pointer text-center">
                         <Upload size={18} className="text-amber-600 mb-1" />
                         <span className="text-[11px] font-bold text-slate-700">আইডি কার্ডের ছবি</span>
@@ -782,7 +922,6 @@ export default function DashboardPage() {
                         />
                       </label>
 
-                      {/* জন্ম নিবন্ধন আপলোড */}
                       <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-amber-300 rounded-xl bg-white hover:bg-amber-50/50 transition cursor-pointer text-center">
                         <Upload size={18} className="text-amber-600 mb-1" />
                         <span className="text-[11px] font-bold text-slate-700">জন্ম নিবন্ধনের ছবি</span>
@@ -797,12 +936,23 @@ export default function DashboardPage() {
                         />
                       </label>
                     </div>
-
-                    <p className="text-[10px] text-amber-800 font-medium">
-                      💡 পরিষ্কার স্পষ্ট ছবি বা PDF আপলোড করুন যাতে দ্রুত যাচাই করা যায়।
-                    </p>
                   </div>
-                </>
+                </div>
+              ) : (
+                /* 🌟 কেইস ৩: অন্যান্য সাধারণ সেবা */
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    {activeService.inputLabel || 'প্রয়োজনীয় তথ্য (NID / ফরম নম্বর)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={orderInput}
+                    onChange={e => setOrderInput(e.target.value)}
+                    placeholder={activeService.inputPlaceholder || 'এখানে লিখুন...'}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs sm:text-sm font-semibold text-slate-800"
+                    autoFocus
+                  />
+                </div>
               )}
 
             </div>
@@ -822,7 +972,7 @@ export default function DashboardPage() {
                 disabled={submitting} 
                 className="flex-1 py-3 bg-[#7c3aed] hover:bg-purple-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg text-xs sm:text-sm transition cursor-pointer disabled:opacity-50"
               >
-                {submitting ? 'লোড হচ্ছে...' : <><Send size={15} /><span>অর্ডার কনফার্ম করুন</span></>}
+                {submitting ? 'লোড হচ্ছে...' : <><Send size={15} /><span>{isNewBirthService ? 'আবেদন জমা দিন' : 'অর্ডার কনফার্ম করুন'}</span></>}
               </button>
             </div>
 
