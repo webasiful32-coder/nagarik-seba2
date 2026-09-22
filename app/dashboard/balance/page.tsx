@@ -24,7 +24,7 @@ export default function BalancePage() {
     }, [])
 
     const paymentNumbers = {
-        bKash: 'বিকাশ সাময়িকভাবে স্থগিত ',
+        bKash: '01615789482',
         Nagad: '01349739103',
     }
 

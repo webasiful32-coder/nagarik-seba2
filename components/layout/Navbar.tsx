@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { LayoutDashboard, ArrowRight } from 'lucide-react'
 
-const WHATSAPP_LINK = "https://wa.me/message/22ICZ7SXLLUTK1"
+const WHATSAPP_LINK = "https://wa.me/message/667QTIMSRSQYO1"
 
 export default function Navbar() {
   return (
