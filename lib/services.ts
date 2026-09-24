@@ -25,7 +25,7 @@ export const services: Service[] = [
     icon: '📋', 
     color: 'bg-blue-400', 
     category: 'nid', 
-    price: 80, 
+    price: 45, 
     popular: true, 
     inputLabel: 'আইডি নাম্বার ও জন্ম তারিখ', 
     inputPlaceholder: 'আইডি নাম্বার / জন্ম তারিখ (DD/MM/YYYY)' 
