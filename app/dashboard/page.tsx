@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/supabase'
 import { categories, services as staticServices } from '@/lib/services'
 
-const WHATSAPP_LINK = "https://wa.me/message/7ZRXATYLUXYIL1"
+const WHATSAPP_LINK = "https://wa.me/message/XL3KF7UP7WZOL1"
 
 export default function DashboardPage() {
   const router = useRouter()
